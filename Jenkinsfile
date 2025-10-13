@@ -45,14 +45,51 @@ pipeline {
                     if (isUnix()) {
                         sh '''
                             echo "Configurando permissões Linux..."
-                            chmod 600 ${SSH_KEY_PATH} || echo "Chave SSH será criada pelo Terraform"
-                            chmod +x ${DEPLOY_SCRIPT}
-                            chmod +x scripts/setup.sh
+                            if [ -f "${SSH_KEY_PATH}" ]; then
+                                chmod 600 ${SSH_KEY_PATH}
+                                echo "✅ Chave SSH configurada: ${SSH_KEY_PATH}"
+                            else
+                                echo "⚠️  Chave SSH será criada pelo Terraform: ${SSH_KEY_PATH}"
+                            fi
+                            
+                            if [ -f "${DEPLOY_SCRIPT}" ]; then
+                                chmod +x ${DEPLOY_SCRIPT}
+                                echo "✅ Deploy script configurado: ${DEPLOY_SCRIPT}"
+                            else
+                                echo "❌ Deploy script não encontrado: ${DEPLOY_SCRIPT}"
+                                exit 1
+                            fi
+                            
+                            if [ -f "scripts/setup.sh" ]; then
+                                chmod +x scripts/setup.sh
+                                echo "✅ Setup script configurado: scripts/setup.sh"
+                            else
+                                echo "❌ Setup script não encontrado: scripts/setup.sh"
+                                exit 1
+                            fi
                         '''
                     } else {
                         bat '''
                             echo "Configurando permissões Windows..."
-                            echo "Chave SSH e scripts prontos para uso"
+                            if exist "%SSH_KEY_PATH%" (
+                                echo "✅ Chave SSH encontrada: %SSH_KEY_PATH%"
+                            ) else (
+                                echo "⚠️  Chave SSH será criada pelo Terraform: %SSH_KEY_PATH%"
+                            )
+                            
+                            if exist "%DEPLOY_SCRIPT%" (
+                                echo "✅ Deploy script encontrado: %DEPLOY_SCRIPT%"
+                            ) else (
+                                echo "❌ Deploy script não encontrado: %DEPLOY_SCRIPT%"
+                                exit /b 1
+                            )
+                            
+                            if exist "scripts\\setup.sh" (
+                                echo "✅ Setup script encontrado: scripts\\setup.sh"
+                            ) else (
+                                echo "❌ Setup script não encontrado: scripts\\setup.sh"
+                                exit /b 1
+                            )
                         '''
                     }
                 }
