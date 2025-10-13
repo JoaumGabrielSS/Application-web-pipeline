@@ -101,13 +101,13 @@ pipeline {
                 expression { !params.SKIP_TESTS }
             }
             parallel {
-                stage('Terraform Validate') {
+                stage('Terraform Format Check') {
                     steps {
                         dir('terraform') {
                             sh '''
-                                echo "Validando sintaxe do Terraform..."
+                                echo "🔍 Verificando formatação do Terraform..."
                                 terraform fmt -check=true -diff=true
-                                terraform validate
+                                echo "✅ Formatação do Terraform validada!"
                             '''
                         }
                     }
@@ -146,9 +146,14 @@ pipeline {
                                 sh '''
                                     echo "🔑 Usando credenciais AWS configuradas no Jenkins..."
                                     aws sts get-caller-identity
-                                    echo "Inicializando Terraform..."
+                                    echo "🏗️  Inicializando Terraform..."
                                     terraform init -upgrade
                                     terraform version
+                                    echo "✅ Terraform inicializado com sucesso!"
+                                    
+                                    echo "🔍 Validando configuração do Terraform..."
+                                    terraform validate
+                                    echo "✅ Configuração do Terraform válida!"
                                 '''
                             }
                         }
@@ -156,7 +161,7 @@ pipeline {
                         echo "⚠️  Credenciais AWS não configuradas no Jenkins, usando environment..."
                         dir('terraform') {
                             sh '''
-                                echo "Verificando credenciais AWS do ambiente..."
+                                echo "⚠️  Verificando credenciais AWS do ambiente..."
                                 if aws sts get-caller-identity; then
                                     echo "✅ Credenciais AWS encontradas no ambiente"
                                 else
@@ -164,9 +169,14 @@ pipeline {
                                     echo "Configure credenciais no Jenkins ou no ambiente"
                                     exit 1
                                 fi
-                                echo "Inicializando Terraform..."
+                                echo "🏗️  Inicializando Terraform..."
                                 terraform init -upgrade
                                 terraform version
+                                echo "✅ Terraform inicializado com sucesso!"
+                                
+                                echo "🔍 Validando configuração do Terraform..."
+                                terraform validate
+                                echo "✅ Configuração do Terraform válida!"
                             '''
                         }
                     }
