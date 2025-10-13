@@ -47,24 +47,24 @@ pipeline {
                             echo "Configurando permissões Linux..."
                             if [ -f "${SSH_KEY_PATH}" ]; then
                                 chmod 600 ${SSH_KEY_PATH}
-                                echo "✅ Chave SSH configurada: ${SSH_KEY_PATH}"
+                                echo "Chave SSH configurada: ${SSH_KEY_PATH}"
                             else
-                                echo "⚠️  Chave SSH será criada pelo Terraform: ${SSH_KEY_PATH}"
+                                echo "Chave SSH será criada pelo Terraform: ${SSH_KEY_PATH}"
                             fi
                             
                             if [ -f "${DEPLOY_SCRIPT}" ]; then
                                 chmod +x ${DEPLOY_SCRIPT}
-                                echo "✅ Deploy script configurado: ${DEPLOY_SCRIPT}"
+                                echo "Deploy script configurado: ${DEPLOY_SCRIPT}"
                             else
-                                echo "❌ Deploy script não encontrado: ${DEPLOY_SCRIPT}"
+                                echo "Deploy script não encontrado: ${DEPLOY_SCRIPT}"
                                 exit 1
                             fi
                             
                             if [ -f "scripts/setup.sh" ]; then
                                 chmod +x scripts/setup.sh
-                                echo "✅ Setup script configurado: scripts/setup.sh"
+                                echo "Setup script configurado: scripts/setup.sh"
                             else
-                                echo "❌ Setup script não encontrado: scripts/setup.sh"
+                                echo "Setup script não encontrado: scripts/setup.sh"
                                 exit 1
                             fi
                         '''
@@ -72,22 +72,22 @@ pipeline {
                         bat '''
                             echo "Configurando permissões Windows..."
                             if exist "%SSH_KEY_PATH%" (
-                                echo "✅ Chave SSH encontrada: %SSH_KEY_PATH%"
+                                echo "Chave SSH encontrada: %SSH_KEY_PATH%"
                             ) else (
-                                echo "⚠️  Chave SSH será criada pelo Terraform: %SSH_KEY_PATH%"
+                                echo "Chave SSH será criada pelo Terraform: %SSH_KEY_PATH%"
                             )
                             
                             if exist "%DEPLOY_SCRIPT%" (
-                                echo "✅ Deploy script encontrado: %DEPLOY_SCRIPT%"
+                                echo "Deploy script encontrado: %DEPLOY_SCRIPT%"
                             ) else (
-                                echo "❌ Deploy script não encontrado: %DEPLOY_SCRIPT%"
+                                echo "Deploy script não encontrado: %DEPLOY_SCRIPT%"
                                 exit /b 1
                             )
                             
                             if exist "scripts\\setup.sh" (
-                                echo "✅ Setup script encontrado: scripts\\setup.sh"
+                                echo "Setup script encontrado: scripts\\setup.sh"
                             ) else (
-                                echo "❌ Setup script não encontrado: scripts\\setup.sh"
+                                echo "Setup script não encontrado: scripts\\setup.sh"
                                 exit /b 1
                             )
                         '''
@@ -105,24 +105,22 @@ pipeline {
                     steps {
                         dir('terraform') {
                             sh '''
-                                echo "🔍 Verificando apenas sintaxe básica do Terraform..."
-                                echo "⚠️  NOTA: Validação completa será feita após terraform init"
+                                echo "Verificando sintaxe do Terraform..."
+                                echo "Validação completa será feita após terraform init"
                                 
-                                # Apenas verifica se os arquivos .tf existem e têm sintaxe básica
                                 for file in *.tf; do
                                     if [ -f "$file" ]; then
-                                        echo "✅ Arquivo encontrado: $file"
+                                        echo "Arquivo encontrado: $file"
                                     fi
                                 done
                                 
-                                # Formatação (não falha se providers não estão disponíveis)
                                 if terraform fmt -check=true -diff=true 2>/dev/null; then
-                                    echo "✅ Formatação do Terraform OK!"
+                                    echo "Formatação do Terraform OK"
                                 else
-                                    echo "⚠️  Formatação será verificada após init"
+                                    echo "Formatação será verificada após init"
                                 fi
                                 
-                                echo "✅ Sintaxe básica verificada!"
+                                echo "Sintaxe básica verificada"
                             '''
                         }
                     }
@@ -134,7 +132,7 @@ pipeline {
                             test -f game-app/docker-compose.yml || exit 1
                             test -f game-app/Dockerfile || exit 1
                             test -f game-app/src/index.html || exit 1
-                            echo "Estrutura da aplicação OK!"
+                            echo "Estrutura da aplicação OK"
                         '''
                     }
                 }
@@ -144,7 +142,7 @@ pipeline {
                             echo "Validando scripts de deploy..."
                             bash -n ${DEPLOY_SCRIPT}
                             bash -n scripts/setup.sh
-                            echo "Scripts validados com sucesso!"
+                            echo "Scripts validados com sucesso"
                         '''
                     }
                 }
@@ -154,45 +152,50 @@ pipeline {
         stage('Terraform Initialize') {
             steps {
                 script {
+                    def initExecuted = false
+                    
                     // Tentar usar credenciais AWS se disponíveis, senão usar environment
                     try {
                         withCredentials([aws(credentialsId: 'aws-access-key', region: 'us-east-1')]) {
                             dir('terraform') {
                                 sh '''
-                                    echo "🔑 Usando credenciais AWS configuradas no Jenkins..."
+                                    echo "Usando credenciais AWS configuradas no Jenkins..."
                                     aws sts get-caller-identity
-                                    echo "🏗️  Inicializando Terraform..."
+                                    echo "Inicializando Terraform..."
                                     terraform init -upgrade
                                     terraform version
-                                    echo "✅ Terraform inicializado com sucesso!"
+                                    echo "Terraform inicializado com sucesso"
                                     
-                                    echo "🔍 Validando configuração do Terraform..."
+                                    echo "Validando configuração do Terraform..."
                                     terraform validate
-                                    echo "✅ Configuração do Terraform válida!"
+                                    echo "Configuração do Terraform válida"
                                 '''
+                                initExecuted = true
                             }
                         }
                     } catch (Exception e) {
-                        echo "⚠️  Credenciais AWS não configuradas no Jenkins, usando environment..."
-                        dir('terraform') {
-                            sh '''
-                                echo "⚠️  Verificando credenciais AWS do ambiente..."
-                                if aws sts get-caller-identity; then
-                                    echo "✅ Credenciais AWS encontradas no ambiente"
-                                else
-                                    echo "❌ Credenciais AWS não encontradas!"
-                                    echo "Configure credenciais no Jenkins ou no ambiente"
-                                    exit 1
-                                fi
-                                echo "🏗️  Inicializando Terraform..."
-                                terraform init -upgrade
-                                terraform version
-                                echo "✅ Terraform inicializado com sucesso!"
-                                
-                                echo "🔍 Validando configuração do Terraform..."
-                                terraform validate
-                                echo "✅ Configuração do Terraform válida!"
-                            '''
+                        if (!initExecuted) {
+                            echo "Credenciais AWS não configuradas no Jenkins, usando environment..."
+                            dir('terraform') {
+                                sh '''
+                                    echo "Verificando credenciais AWS do ambiente..."
+                                    if aws sts get-caller-identity; then
+                                        echo "Credenciais AWS encontradas no ambiente"
+                                    else
+                                        echo "Credenciais AWS não encontradas"
+                                        echo "Configure credenciais no Jenkins ou no ambiente"
+                                        exit 1
+                                    fi
+                                    echo "Inicializando Terraform..."
+                                    terraform init -upgrade
+                                    terraform version
+                                    echo "Terraform inicializado com sucesso"
+                                    
+                                    echo "Validando configuração do Terraform..."
+                                    terraform validate
+                                    echo "Configuração do Terraform válida"
+                                '''
+                            }
                         }
                     }
                 }
@@ -208,11 +211,29 @@ pipeline {
             }
             steps {
                 script {
+                    def planExecuted = false
+                    
                     try {
                         withCredentials([aws(credentialsId: 'aws-access-key', region: 'us-east-1')]) {
                             dir('terraform') {
                                 sh '''
-                                    echo "🔍 Planejando infraestrutura com credenciais Jenkins..."
+                                    echo "Planejando infraestrutura com credenciais Jenkins..."
+                                    terraform plan -out=tfplan \
+                                        -var="project_name=${TF_VAR_project_name}" \
+                                        -detailed-exitcode
+                                    
+                                    echo "Salvando plano para revisão..."
+                                    terraform show -no-color tfplan > plan-output.txt
+                                '''
+                                planExecuted = true
+                            }
+                        }
+                    } catch (Exception e) {
+                        if (!planExecuted) {
+                            echo "Credenciais Jenkins falharam, tentando credenciais do ambiente..."
+                            dir('terraform') {
+                                sh '''
+                                    echo "Planejando infraestrutura com credenciais do ambiente..."
                                     terraform plan -out=tfplan \
                                         -var="project_name=${TF_VAR_project_name}" \
                                         -detailed-exitcode
@@ -221,18 +242,6 @@ pipeline {
                                     terraform show -no-color tfplan > plan-output.txt
                                 '''
                             }
-                        }
-                    } catch (Exception e) {
-                        dir('terraform') {
-                            sh '''
-                                echo "🔍 Planejando infraestrutura com credenciais do ambiente..."
-                                terraform plan -out=tfplan \
-                                    -var="project_name=${TF_VAR_project_name}" \
-                                    -detailed-exitcode
-                                
-                                echo "Salvando plano para revisão..."
-                                terraform show -no-color tfplan > plan-output.txt
-                            '''
                         }
                     }
                     
@@ -273,6 +282,8 @@ pipeline {
                     }
                     
                     if (userApproval || params.FORCE_RECREATE) {
+                        def deployExecuted = false
+                        
                         try {
                             withCredentials([aws(credentialsId: 'aws-access-key', region: 'us-east-1')]) {
                                 dir('terraform') {
@@ -287,21 +298,25 @@ pipeline {
                                         echo "✅ Infraestrutura criada com sucesso!"
                                         echo "🌐 IP do servidor: $(cat ../server_ip.txt)"
                                     '''
+                                    deployExecuted = true
                                 }
                             }
                         } catch (Exception e) {
-                            dir('terraform') {
-                                sh '''
-                                    echo "🏗️ Aplicando infraestrutura com credenciais do ambiente..."
-                                    terraform apply -auto-approve tfplan
-                                    
-                                    echo "📝 Capturando outputs da infraestrutura..."
-                                    terraform output -raw server_ip > ../server_ip.txt
-                                    terraform output -raw server_public_ip > ../server_public_ip.txt
-                                    
-                                    echo "✅ Infraestrutura criada com sucesso!"
-                                    echo "🌐 IP do servidor: $(cat ../server_ip.txt)"
-                                '''
+                            if (!deployExecuted) {
+                                echo "⚠️ Credenciais Jenkins falharam, tentando credenciais do ambiente..."
+                                dir('terraform') {
+                                    sh '''
+                                        echo "🏗️ Aplicando infraestrutura com credenciais do ambiente..."
+                                        terraform apply -auto-approve tfplan
+                                        
+                                        echo "📝 Capturando outputs da infraestrutura..."
+                                        terraform output -raw server_ip > ../server_ip.txt
+                                        terraform output -raw server_public_ip > ../server_public_ip.txt
+                                        
+                                        echo "✅ Infraestrutura criada com sucesso!"
+                                        echo "🌐 IP do servidor: $(cat ../server_ip.txt)"
+                                    '''
+                                }
                             }
                         }
                     } else {
