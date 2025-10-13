@@ -1,0 +1,67 @@
+# Terraform Files
+*.tfstate
+*.tfstate.*
+terraform.tfvars
+*.tfplan
+.terraform/
+.terraform.lock.hcl
+
+# Terraform Variable Files (SEGURANÇA)
+terraform.tfvars
+**/terraform.tfvars
+secrets.tfvars
+private.tfvars
+
+# Manter arquivos de exemplo
+!terraform.tfvars.example
+!*.tfvars.example
+
+# SSH Keys (Sensitive)
+*.pem
+*.key
+id_rsa*
+
+# Logs
+*.log
+logs/
+*.tmp
+
+# OS Files
+.DS_Store
+Thumbs.db
+
+# IDE Files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Docker
+.dockerignore
+
+# PowerShell
+*.ps1xml
+
+# Temporary Files
+temp/
+tmp/
+*.backup
+
+# AWS CLI
+.aws/
+
+# Jenkins
+.jenkins/
+build/
+target/
+
+# Application Specific
+server_ip.txt
+server_public_ip.txt
+plan-output.txt

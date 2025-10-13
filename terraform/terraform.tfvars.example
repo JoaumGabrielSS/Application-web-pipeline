@@ -1,0 +1,45 @@
+# terraform.tfvars.example
+# Arquivo de exemplo para configuração - Copie para terraform.tfvars e personalize
+# Este arquivo pode ser commitado no Git (sem dados sensíveis)
+
+# Configurações AWS
+aws_region = "us-east-1"  # ou sa-east-1, eu-west-1, etc.
+
+# Configurações do Projeto
+project_name = "match3-game"    # Nome único do projeto
+environment  = "production"     # dev, staging, production
+
+# Configurações da Infraestrutura
+instance_type = "t3.micro"            # t3.micro (Free Tier), t3.small, t3.medium
+key_name     = "seu-key-pair-name"    # Nome da chave SSH na AWS
+
+# Configurações de Rede
+allowed_ssh_cidr = ["SEU.IP.AQUI/32"]  # Restringir SSH ao seu IP para segurança
+vpc_cidr         = "172.31.1.0/24"     # CIDR da subnet
+
+# Configurações do Banco de Dados
+db_name     = "gamedb"
+db_username = "gameuser"
+db_password = "ALTERE-PARA-SENHA-FORTE"  # Use senha forte em produção!
+
+# Configurações da Aplicação
+app_port = 3000    # Porta da API Node.js
+db_port  = 3306    # Porta do MySQL
+web_port = 80      # Porta HTTP
+ssl_port = 443     # Porta HTTPS
+
+# Tags do Projeto (personalize conforme sua organização)
+project_tags = {
+  Project     = "Match3Game"
+  Environment = "Production"      # ou Development, Staging
+  Owner       = "SEU-NOME"        # Seu nome ou equipe
+  CostCenter  = "Gaming"          # Centro de custo
+  Backup      = "Daily"           # Política de backup
+  Team        = "DevOps"          # Equipe responsável
+}
+
+# INSTRUÇÕES:
+# 1. Copie este arquivo: cp terraform.tfvars.example terraform.tfvars
+# 2. Edite terraform.tfvars com seus valores reais
+# 3. NUNCA commit terraform.tfvars no Git (contém dados sensíveis)
+# 4. Para diferentes ambientes, crie: dev.tfvars, staging.tfvars, prod.tfvars
