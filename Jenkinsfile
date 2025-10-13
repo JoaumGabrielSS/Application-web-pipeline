@@ -61,7 +61,7 @@ pipeline {
         
         stage('Code Validation') {
             when {
-                not { params.SKIP_TESTS }
+                expression { !params.SKIP_TESTS }
             }
             parallel {
                 stage('Terraform Validate') {
