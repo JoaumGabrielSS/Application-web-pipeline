@@ -41,7 +41,7 @@ resource "aws_route_table_association" "game_rta" {
 data "aws_ami" "amazon_linux" {
   most_recent = true
   owners      = ["amazon"]
-  
+
   filter {
     name   = "name"
     values = ["amzn2-ami-hvm-*-x86_64-gp2"]
@@ -51,13 +51,13 @@ data "aws_ami" "amazon_linux" {
 
 
 resource "aws_instance" "game_server" {
-  ami                    = data.aws_ami.amazon_linux.id
-  instance_type          = var.instance_type
-  key_name              = var.key_name
-  vpc_security_group_ids = [aws_security_group.web_sg.id]
-  subnet_id = aws_subnet.game_subnet.id
+  ami                         = data.aws_ami.amazon_linux.id
+  instance_type               = var.instance_type
+  key_name                    = var.key_name
+  vpc_security_group_ids      = [aws_security_group.web_sg.id]
+  subnet_id                   = aws_subnet.game_subnet.id
   associate_public_ip_address = true
-  
+
   user_data = base64encode(file("${path.module}/user_data_production.sh"))
 
   monitoring = true

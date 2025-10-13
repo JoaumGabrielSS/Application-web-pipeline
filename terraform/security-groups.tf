@@ -3,13 +3,13 @@
 
 locals {
   common_ports = {
-    http    = 80
-    https   = 443
-    ssh     = 22
-    mysql   = 3306
-    api     = 3000
+    http  = 80
+    https = 443
+    ssh   = 22
+    mysql = 3306
+    api   = 3000
   }
-  
+
   common_protocols = {
     tcp = "tcp"
     udp = "udp"

@@ -8,7 +8,7 @@ variable "environment" {
   description = "Environment name (dev, staging, production)"
   type        = string
   default     = "dev"
-  
+
   validation {
     condition     = can(regex("^(dev|staging|production)$", var.environment))
     error_message = "Environment must be dev, staging, or production."
@@ -19,7 +19,7 @@ variable "project_name" {
   description = "Project name for resource naming"
   type        = string
   default     = "match3-game"
-  
+
   validation {
     condition     = can(regex("^[a-z0-9-]+$", var.project_name))
     error_message = "Project name must contain only lowercase letters, numbers, and hyphens."
@@ -30,7 +30,7 @@ variable "instance_type" {
   description = "EC2 instance type"
   type        = string
   default     = "t3.micro"
-  
+
   validation {
     condition     = can(regex("^[tm][2-9]\\.(nano|micro|small|medium|large|xlarge|2xlarge)$", var.instance_type))
     error_message = "Instance type must be a valid EC2 instance type (t3.micro, t3.small, etc.)."
