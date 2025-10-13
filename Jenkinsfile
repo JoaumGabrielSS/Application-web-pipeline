@@ -138,12 +138,38 @@ pipeline {
         
         stage('Terraform Initialize') {
             steps {
-                dir('terraform') {
-                    sh '''
-                        echo "Inicializando Terraform..."
-                        terraform init -upgrade
-                        terraform version
-                    '''
+                script {
+                    // Tentar usar credenciais AWS se disponíveis, senão usar environment
+                    try {
+                        withCredentials([aws(credentialsId: 'aws-credentials', region: 'us-east-1')]) {
+                            dir('terraform') {
+                                sh '''
+                                    echo "🔑 Usando credenciais AWS configuradas no Jenkins..."
+                                    aws sts get-caller-identity
+                                    echo "Inicializando Terraform..."
+                                    terraform init -upgrade
+                                    terraform version
+                                '''
+                            }
+                        }
+                    } catch (Exception e) {
+                        echo "⚠️  Credenciais AWS não configuradas no Jenkins, usando environment..."
+                        dir('terraform') {
+                            sh '''
+                                echo "Verificando credenciais AWS do ambiente..."
+                                if aws sts get-caller-identity; then
+                                    echo "✅ Credenciais AWS encontradas no ambiente"
+                                else
+                                    echo "❌ Credenciais AWS não encontradas!"
+                                    echo "Configure credenciais no Jenkins ou no ambiente"
+                                    exit 1
+                                fi
+                                echo "Inicializando Terraform..."
+                                terraform init -upgrade
+                                terraform version
+                            '''
+                        }
+                    }
                 }
             }
         }
@@ -156,18 +182,38 @@ pipeline {
                 }
             }
             steps {
-                dir('terraform') {
-                    sh '''
-                        echo "Planejando infraestrutura..."
-                        terraform plan -out=tfplan \
-                            -var="project_name=${TF_VAR_project_name}" \
-                            -detailed-exitcode
-                        
-                        echo "Salvando plano para revisão..."
-                        terraform show -no-color tfplan > plan-output.txt
-                    '''
+                script {
+                    try {
+                        withCredentials([aws(credentialsId: 'aws-credentials', region: 'us-east-1')]) {
+                            dir('terraform') {
+                                sh '''
+                                    echo "🔍 Planejando infraestrutura com credenciais Jenkins..."
+                                    terraform plan -out=tfplan \
+                                        -var="project_name=${TF_VAR_project_name}" \
+                                        -detailed-exitcode
+                                    
+                                    echo "Salvando plano para revisão..."
+                                    terraform show -no-color tfplan > plan-output.txt
+                                '''
+                            }
+                        }
+                    } catch (Exception e) {
+                        dir('terraform') {
+                            sh '''
+                                echo "🔍 Planejando infraestrutura com credenciais do ambiente..."
+                                terraform plan -out=tfplan \
+                                    -var="project_name=${TF_VAR_project_name}" \
+                                    -detailed-exitcode
+                                
+                                echo "Salvando plano para revisão..."
+                                terraform show -no-color tfplan > plan-output.txt
+                            '''
+                        }
+                    }
                     
-                    archiveArtifacts artifacts: 'tfplan,plan-output.txt', fingerprint: true
+                    dir('terraform') {
+                        archiveArtifacts artifacts: 'tfplan,plan-output.txt', fingerprint: true
+                    }
                 }
             }
         }
@@ -202,18 +248,36 @@ pipeline {
                     }
                     
                     if (userApproval || params.FORCE_RECREATE) {
-                        dir('terraform') {
-                            sh '''
-                                echo "🏗️ Aplicando infraestrutura..."
-                                terraform apply -auto-approve tfplan
-                                
-                                echo "📝 Capturando outputs da infraestrutura..."
-                                terraform output -raw server_ip > ../server_ip.txt
-                                terraform output -raw server_public_ip > ../server_public_ip.txt
-                                
-                                echo "✅ Infraestrutura criada com sucesso!"
-                                echo "🌐 IP do servidor: $(cat ../server_ip.txt)"
-                            '''
+                        try {
+                            withCredentials([aws(credentialsId: 'aws-credentials', region: 'us-east-1')]) {
+                                dir('terraform') {
+                                    sh '''
+                                        echo "🏗️ Aplicando infraestrutura com credenciais Jenkins..."
+                                        terraform apply -auto-approve tfplan
+                                        
+                                        echo "📝 Capturando outputs da infraestrutura..."
+                                        terraform output -raw server_ip > ../server_ip.txt
+                                        terraform output -raw server_public_ip > ../server_public_ip.txt
+                                        
+                                        echo "✅ Infraestrutura criada com sucesso!"
+                                        echo "🌐 IP do servidor: $(cat ../server_ip.txt)"
+                                    '''
+                                }
+                            }
+                        } catch (Exception e) {
+                            dir('terraform') {
+                                sh '''
+                                    echo "🏗️ Aplicando infraestrutura com credenciais do ambiente..."
+                                    terraform apply -auto-approve tfplan
+                                    
+                                    echo "📝 Capturando outputs da infraestrutura..."
+                                    terraform output -raw server_ip > ../server_ip.txt
+                                    terraform output -raw server_public_ip > ../server_public_ip.txt
+                                    
+                                    echo "✅ Infraestrutura criada com sucesso!"
+                                    echo "🌐 IP do servidor: $(cat ../server_ip.txt)"
+                                '''
+                            }
                         }
                     } else {
                         echo "❌ Deploy cancelado pelo usuário"
