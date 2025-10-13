@@ -156,7 +156,7 @@ pipeline {
                 script {
                     // Tentar usar credenciais AWS se disponíveis, senão usar environment
                     try {
-                        withCredentials([aws(credentialsId: 'aws-credentials', region: 'us-east-1')]) {
+                        withCredentials([aws(credentialsId: 'aws-access-key', region: 'us-east-1')]) {
                             dir('terraform') {
                                 sh '''
                                     echo "🔑 Usando credenciais AWS configuradas no Jenkins..."
@@ -209,7 +209,7 @@ pipeline {
             steps {
                 script {
                     try {
-                        withCredentials([aws(credentialsId: 'aws-credentials', region: 'us-east-1')]) {
+                        withCredentials([aws(credentialsId: 'aws-access-key', region: 'us-east-1')]) {
                             dir('terraform') {
                                 sh '''
                                     echo "🔍 Planejando infraestrutura com credenciais Jenkins..."
@@ -274,7 +274,7 @@ pipeline {
                     
                     if (userApproval || params.FORCE_RECREATE) {
                         try {
-                            withCredentials([aws(credentialsId: 'aws-credentials', region: 'us-east-1')]) {
+                            withCredentials([aws(credentialsId: 'aws-access-key', region: 'us-east-1')]) {
                                 dir('terraform') {
                                     sh '''
                                         echo "🏗️ Aplicando infraestrutura com credenciais Jenkins..."
