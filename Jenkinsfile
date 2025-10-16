@@ -222,7 +222,15 @@ pipeline {
                                     echo "Planejando infraestrutura com credenciais Jenkins..."
                                     terraform plan -out=tfplan \
                                         -var="project_name=${TF_VAR_project_name}" \
-                                        -detailed-exitcode
+                                        -detailed-exitcode || EXIT_CODE=$?
+                                    
+                                    if [ "${EXIT_CODE:-0}" -eq 2 ]; then
+                                        echo "Mudanças detectadas - plano criado com sucesso"
+                                        EXIT_CODE=0
+                                    elif [ "${EXIT_CODE:-0}" -ne 0 ]; then
+                                        echo "Erro no planejamento: código de saída $EXIT_CODE"
+                                        exit $EXIT_CODE
+                                    fi
                                     
                                     echo "Salvando plano para revisão..."
                                     terraform show -no-color tfplan > plan-output.txt
@@ -241,7 +249,15 @@ pipeline {
                                 echo "Planejando infraestrutura com credenciais do ambiente..."
                                 terraform plan -out=tfplan \
                                     -var="project_name=${TF_VAR_project_name}" \
-                                    -detailed-exitcode
+                                    -detailed-exitcode || EXIT_CODE=$?
+                                
+                                if [ "${EXIT_CODE:-0}" -eq 2 ]; then
+                                    echo "Mudanças detectadas - plano criado com sucesso"
+                                    EXIT_CODE=0
+                                elif [ "${EXIT_CODE:-0}" -ne 0 ]; then
+                                    echo "Erro no planejamento: código de saída $EXIT_CODE"
+                                    exit $EXIT_CODE
+                                fi
                                 
                                 echo "Salvando plano para revisão..."
                                 terraform show -no-color tfplan > plan-output.txt
