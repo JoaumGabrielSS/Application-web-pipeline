@@ -313,7 +313,7 @@ pipeline {
                                         
                                         echo "📝 Capturando outputs da infraestrutura..."
                                         terraform output -raw server_ip > ../server_ip.txt
-                                        terraform output -raw server_public_ip > ../server_public_ip.txt
+                                        terraform output -raw instance_public_ip > ../server_public_ip.txt
                                         
                                         echo "✅ Infraestrutura criada com sucesso!"
                                         echo "🌐 IP do servidor: $(cat ../server_ip.txt)"
@@ -334,7 +334,7 @@ pipeline {
                                     
                                     echo "📝 Capturando outputs da infraestrutura..."
                                     terraform output -raw server_ip > ../server_ip.txt
-                                    terraform output -raw server_public_ip > ../server_public_ip.txt
+                                    terraform output -raw instance_public_ip > ../server_public_ip.txt
                                     
                                     echo "✅ Infraestrutura criada com sucesso!"
                                     echo "🌐 IP do servidor: $(cat ../server_ip.txt)"
