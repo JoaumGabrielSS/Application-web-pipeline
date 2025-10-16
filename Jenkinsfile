@@ -155,7 +155,6 @@ pipeline {
                 script {
                     def initExecuted = false
                     
-                    // Tentar usar credenciais AWS se disponíveis, senão usar environment
                     try {
                         withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-access-key']]) {
                             dir('terraform') {
@@ -175,28 +174,30 @@ pipeline {
                             }
                         }
                     } catch (Exception e) {
-                        if (!initExecuted) {
-                            echo "Credenciais AWS não configuradas no Jenkins, usando environment..."
-                            dir('terraform') {
-                                sh '''
-                                    echo "Verificando credenciais AWS do ambiente..."
-                                    if aws sts get-caller-identity; then
-                                        echo "Credenciais AWS encontradas no ambiente"
-                                    else
-                                        echo "Credenciais AWS não encontradas"
-                                        echo "Configure credenciais no Jenkins ou no ambiente"
-                                        exit 1
-                                    fi
-                                    echo "Inicializando Terraform..."
-                                    terraform init -upgrade
-                                    terraform version
-                                    echo "Terraform inicializado com sucesso"
-                                    
-                                    echo "Validando configuração do Terraform..."
-                                    terraform validate
-                                    echo "Configuração do Terraform válida"
-                                '''
-                            }
+                        echo "Credenciais Jenkins falharam: ${e.message}"
+                    }
+                    
+                    if (!initExecuted) {
+                        echo "Credenciais AWS não configuradas no Jenkins, usando environment..."
+                        dir('terraform') {
+                            sh '''
+                                echo "Verificando credenciais AWS do ambiente..."
+                                if aws sts get-caller-identity; then
+                                    echo "Credenciais AWS encontradas no ambiente"
+                                else
+                                    echo "Credenciais AWS não encontradas"
+                                    echo "Configure credenciais no Jenkins ou no ambiente"
+                                    exit 1
+                                fi
+                                echo "Inicializando Terraform..."
+                                terraform init -upgrade
+                                terraform version
+                                echo "Terraform inicializado com sucesso"
+                                
+                                echo "Validando configuração do Terraform..."
+                                terraform validate
+                                echo "Configuração do Terraform válida"
+                            '''
                         }
                     }
                 }
@@ -230,19 +231,21 @@ pipeline {
                             }
                         }
                     } catch (Exception e) {
-                        if (!planExecuted) {
-                            echo "Credenciais Jenkins falharam, tentando credenciais do ambiente..."
-                            dir('terraform') {
-                                sh '''
-                                    echo "Planejando infraestrutura com credenciais do ambiente..."
-                                    terraform plan -out=tfplan \
-                                        -var="project_name=${TF_VAR_project_name}" \
-                                        -detailed-exitcode
-                                    
-                                    echo "Salvando plano para revisão..."
-                                    terraform show -no-color tfplan > plan-output.txt
-                                '''
-                            }
+                        echo "Credenciais Jenkins falharam: ${e.message}"
+                    }
+                    
+                    if (!planExecuted) {
+                        echo "Tentando credenciais do ambiente..."
+                        dir('terraform') {
+                            sh '''
+                                echo "Planejando infraestrutura com credenciais do ambiente..."
+                                terraform plan -out=tfplan \
+                                    -var="project_name=${TF_VAR_project_name}" \
+                                    -detailed-exitcode
+                                
+                                echo "Salvando plano para revisão..."
+                                terraform show -no-color tfplan > plan-output.txt
+                            '''
                         }
                     }
                     
@@ -303,21 +306,23 @@ pipeline {
                                 }
                             }
                         } catch (Exception e) {
-                            if (!deployExecuted) {
-                                echo "⚠️ Credenciais Jenkins falharam, tentando credenciais do ambiente..."
-                                dir('terraform') {
-                                    sh '''
-                                        echo "🏗️ Aplicando infraestrutura com credenciais do ambiente..."
-                                        terraform apply -auto-approve tfplan
-                                        
-                                        echo "📝 Capturando outputs da infraestrutura..."
-                                        terraform output -raw server_ip > ../server_ip.txt
-                                        terraform output -raw server_public_ip > ../server_public_ip.txt
-                                        
-                                        echo "✅ Infraestrutura criada com sucesso!"
-                                        echo "🌐 IP do servidor: $(cat ../server_ip.txt)"
-                                    '''
-                                }
+                            echo "Credenciais Jenkins falharam: ${e.message}"
+                        }
+                        
+                        if (!deployExecuted) {
+                            echo "⚠️ Tentando credenciais do ambiente..."
+                            dir('terraform') {
+                                sh '''
+                                    echo "🏗️ Aplicando infraestrutura com credenciais do ambiente..."
+                                    terraform apply -auto-approve tfplan
+                                    
+                                    echo "📝 Capturando outputs da infraestrutura..."
+                                    terraform output -raw server_ip > ../server_ip.txt
+                                    terraform output -raw server_public_ip > ../server_public_ip.txt
+                                    
+                                    echo "✅ Infraestrutura criada com sucesso!"
+                                    echo "🌐 IP do servidor: $(cat ../server_ip.txt)"
+                                '''
                             }
                         }
                     } else {
