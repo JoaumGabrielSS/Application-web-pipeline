@@ -3,6 +3,7 @@ pipeline {
     
     environment {
         AWS_DEFAULT_REGION = 'us-east-1'
+        AWS_REGION = 'us-east-1'
         TF_VAR_project_name = 'match3-game'
         SSH_KEY_PATH = 'terraform/candy-crush-game-key.pem'
         DEPLOY_SCRIPT = 'scripts/deploy-application.sh'
@@ -156,7 +157,7 @@ pipeline {
                     
                     // Tentar usar credenciais AWS se disponíveis, senão usar environment
                     try {
-                        withCredentials([aws(credentialsId: 'aws-access-key', region: 'us-east-1')]) {
+                        withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-access-key']]) {
                             dir('terraform') {
                                 sh '''
                                     echo "Usando credenciais AWS configuradas no Jenkins..."
@@ -214,7 +215,7 @@ pipeline {
                     def planExecuted = false
                     
                     try {
-                        withCredentials([aws(credentialsId: 'aws-access-key', region: 'us-east-1')]) {
+                        withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-access-key']]) {
                             dir('terraform') {
                                 sh '''
                                     echo "Planejando infraestrutura com credenciais Jenkins..."
@@ -285,7 +286,7 @@ pipeline {
                         def deployExecuted = false
                         
                         try {
-                            withCredentials([aws(credentialsId: 'aws-access-key', region: 'us-east-1')]) {
+                            withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-access-key']]) {
                                 dir('terraform') {
                                     sh '''
                                         echo "🏗️ Aplicando infraestrutura com credenciais Jenkins..."
