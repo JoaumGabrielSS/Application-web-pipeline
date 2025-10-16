@@ -57,3 +57,13 @@ output "ssh_command" {
   description = "SSH command to connect to the instance"
   value       = "ssh -i ${var.key_name}.pem ec2-user@${aws_instance.game_server.public_ip}"
 }
+
+output "private_key_path" {
+  description = "Path to the private SSH key file"
+  value       = "${path.module}/${var.key_name}.pem"
+}
+
+output "public_key" {
+  description = "Public SSH key"
+  value       = tls_private_key.game_key.public_key_openssh
+}
