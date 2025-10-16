@@ -448,14 +448,36 @@ pipeline {
                     )
                     
                     if (confirmation == 'DESTROY-ALL') {
-                        dir('terraform') {
-                            sh '''
-                                echo "🗑️ Destruindo infraestrutura..."
-                                terraform destroy -auto-approve \
-                                    -var="project_name=${TF_VAR_project_name}"
-                                
-                                echo "✅ Infraestrutura destruída com sucesso!"
-                            '''
+                        def destroyExecuted = false
+                        
+                        try {
+                            withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-access-key']]) {
+                                dir('terraform') {
+                                    sh '''
+                                        echo "🗑️ Destruindo infraestrutura com credenciais Jenkins..."
+                                        terraform destroy -auto-approve \
+                                            -var="project_name=${TF_VAR_project_name}"
+                                        
+                                        echo "✅ Infraestrutura destruída com sucesso!"
+                                    '''
+                                    destroyExecuted = true
+                                }
+                            }
+                        } catch (Exception e) {
+                            echo "Credenciais Jenkins falharam: ${e.message}"
+                        }
+                        
+                        if (!destroyExecuted) {
+                            echo "⚠️ Tentando credenciais do ambiente..."
+                            dir('terraform') {
+                                sh '''
+                                    echo "🗑️ Destruindo infraestrutura com credenciais do ambiente..."
+                                    terraform destroy -auto-approve \
+                                        -var="project_name=${TF_VAR_project_name}"
+                                    
+                                    echo "✅ Infraestrutura destruída com sucesso!"
+                                '''
+                            }
                         }
                         
                         // Limpar arquivos temporários
