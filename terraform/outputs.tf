@@ -63,7 +63,12 @@ output "private_key_path" {
   value       = "${path.module}/${var.key_name}.pem"
 }
 
-output "public_key" {
-  description = "Public SSH key"
-  value       = tls_private_key.game_key.public_key_openssh
+output "key_pair_name" {
+  description = "Name of the AWS key pair being used"
+  value       = var.key_name
+}
+
+output "key_exists" {
+  description = "Whether the key pair exists in AWS"
+  value       = data.aws_key_pair.existing_game_key.key_name != null
 }

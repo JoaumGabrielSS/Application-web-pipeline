@@ -48,33 +48,47 @@ data "aws_ami" "amazon_linux" {
   }
 }
 
-# Create RSA private key
+# Get existing AWS key pair
+data "aws_key_pair" "existing_game_key" {
+  key_name = var.key_name
+}
+
+# Create RSA private key only if we need to recreate
 resource "tls_private_key" "game_key" {
+  count     = data.aws_key_pair.existing_game_key.key_name != null ? 0 : 1
   algorithm = "RSA"
   rsa_bits  = 4096
 }
 
-# Create AWS key pair
+# Create AWS key pair only if it doesn't exist
 resource "aws_key_pair" "game_key" {
+  count      = data.aws_key_pair.existing_game_key.key_name != null ? 0 : 1
   key_name   = var.key_name
-  public_key = tls_private_key.game_key.public_key_openssh
+  public_key = tls_private_key.game_key[0].public_key_openssh
 
   tags = merge(var.project_tags, {
     Name = "${var.project_name}-key-pair"
   })
 }
 
-# Save private key to local file
+# Use existing private key file if available
+locals {
+  use_existing_key = fileexists("${path.module}/${var.key_name}.pem")
+  private_key_content = local.use_existing_key ? file("${path.module}/${var.key_name}.pem") : (length(tls_private_key.game_key) > 0 ? tls_private_key.game_key[0].private_key_pem : "")
+}
+
+# Save private key to local file only if needed
 resource "local_file" "private_key" {
-  content  = tls_private_key.game_key.private_key_pem
-  filename = "${path.module}/${var.key_name}.pem"
+  count           = local.use_existing_key ? 0 : 1
+  content         = local.private_key_content
+  filename        = "${path.module}/${var.key_name}.pem"
   file_permission = "0600"
 }
 
 resource "aws_instance" "game_server" {
   ami                         = data.aws_ami.amazon_linux.id
   instance_type               = var.instance_type
-  key_name                    = aws_key_pair.game_key.key_name
+  key_name                    = var.key_name
   vpc_security_group_ids      = [aws_security_group.web_sg.id]
   subnet_id                   = aws_subnet.game_subnet.id
   associate_public_ip_address = true
@@ -94,6 +108,4 @@ resource "aws_instance" "game_server" {
     Name = "${var.project_name}-game-server"
     Type = "GameServer"
   })
-
-  depends_on = [aws_key_pair.game_key]
 }
