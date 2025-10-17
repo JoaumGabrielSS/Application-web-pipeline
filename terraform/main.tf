@@ -48,39 +48,18 @@ data "aws_ami" "amazon_linux" {
   }
 }
 
-# Get existing AWS key pair
-data "aws_key_pair" "existing_game_key" {
-  key_name = var.key_name
-}
-
-# Create RSA private key only if we need to recreate
+# Always create a private key for Jenkins to use
 resource "tls_private_key" "game_key" {
-  count     = data.aws_key_pair.existing_game_key.key_name != null ? 0 : 1
   algorithm = "RSA"
   rsa_bits  = 4096
 }
 
-# Create AWS key pair only if it doesn't exist
-resource "aws_key_pair" "game_key" {
-  count      = data.aws_key_pair.existing_game_key.key_name != null ? 0 : 1
-  key_name   = var.key_name
-  public_key = tls_private_key.game_key[0].public_key_openssh
+# Use existing AWS key pair (will use the one that already exists)
+# Since we know the key exists, we don't need to create it again
 
-  tags = merge(var.project_tags, {
-    Name = "${var.project_name}-key-pair"
-  })
-}
-
-# Use existing private key file if available
-locals {
-  use_existing_key = fileexists("${path.module}/${var.key_name}.pem")
-  private_key_content = local.use_existing_key ? file("${path.module}/${var.key_name}.pem") : (length(tls_private_key.game_key) > 0 ? tls_private_key.game_key[0].private_key_pem : "")
-}
-
-# Save private key to local file only if needed
+# Always save the private key to Jenkins workspace
 resource "local_file" "private_key" {
-  count           = local.use_existing_key ? 0 : 1
-  content         = local.private_key_content
+  content         = tls_private_key.game_key.private_key_pem
   filename        = "${path.module}/${var.key_name}.pem"
   file_permission = "0600"
 }
