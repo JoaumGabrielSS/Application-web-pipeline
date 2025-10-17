@@ -68,7 +68,7 @@ output "key_pair_name" {
   value       = var.key_name
 }
 
-output "key_exists" {
-  description = "Whether the key pair exists in AWS"
-  value       = data.aws_key_pair.existing_game_key.key_name != null
+output "private_key_generated" {
+  description = "Whether a private key was generated for this deployment"
+  value       = true
 }
