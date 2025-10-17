@@ -78,7 +78,7 @@ resource "aws_key_pair" "game_key" {
 resource "aws_instance" "game_server" {
   ami                         = data.aws_ami.amazon_linux.id
   instance_type               = var.instance_type
-  key_name                    = var.key_name
+  key_name                    = aws_key_pair.game_key.key_name
   vpc_security_group_ids      = [aws_security_group.web_sg.id]
   subnet_id                   = aws_subnet.game_subnet.id
   associate_public_ip_address = true
@@ -95,14 +95,14 @@ resource "aws_instance" "game_server" {
   }
 
   tags = merge(var.project_tags, {
-    Name = "${var.project_name}-game-server"
+    Name = "${var.project_name}-game-server-v2"
     Type = "GameServer"
+    KeyVersion = "v2-${timestamp()}"
   })
 
-  # Force recreation when key pair is updated
+  # Force recreation with new key
   lifecycle {
     create_before_destroy = true
-    replace_triggered_by  = [aws_key_pair.game_key]
   }
 
   depends_on = [aws_key_pair.game_key]
