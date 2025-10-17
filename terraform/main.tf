@@ -48,13 +48,25 @@ data "aws_ami" "amazon_linux" {
   }
 }
 
-# Always create a private key for Jenkins to use
+# Use existing AWS key pair instead of creating new one
+data "aws_key_pair" "existing_game_key" {
+  key_name = var.key_name
+}
+
+# Create a new private key for Jenkins to use (since we can't get the existing private key from AWS)
 resource "tls_private_key" "game_key" {
   algorithm = "RSA"
   rsa_bits  = 4096
 }
 
-# Create or update AWS key pair with new public key
+# Save the new private key to Jenkins workspace
+resource "local_file" "private_key" {
+  content         = tls_private_key.game_key.private_key_pem
+  filename        = "${path.module}/${var.key_name}.pem"
+  file_permission = "0600"
+}
+
+# Update the existing key pair with the new public key
 resource "aws_key_pair" "game_key" {
   key_name   = var.key_name
   public_key = tls_private_key.game_key.public_key_openssh
@@ -64,21 +76,14 @@ resource "aws_key_pair" "game_key" {
   })
 
   lifecycle {
-    create_before_destroy = true
+    replace_triggered_by = [tls_private_key.game_key]
   }
-}
-
-# Always save the private key to Jenkins workspace
-resource "local_file" "private_key" {
-  content         = tls_private_key.game_key.private_key_pem
-  filename        = "${path.module}/${var.key_name}.pem"
-  file_permission = "0600"
 }
 
 resource "aws_instance" "game_server" {
   ami                         = data.aws_ami.amazon_linux.id
   instance_type               = var.instance_type
-  key_name                    = aws_key_pair.game_key.key_name
+  key_name                    = var.key_name
   vpc_security_group_ids      = [aws_security_group.web_sg.id]
   subnet_id                   = aws_subnet.game_subnet.id
   associate_public_ip_address = true
@@ -99,9 +104,10 @@ resource "aws_instance" "game_server" {
     Type = "GameServer"
   })
 
-  # Force recreation when key pair changes
+  # Force recreation when key pair is updated
   lifecycle {
     create_before_destroy = true
+    replace_triggered_by  = [aws_key_pair.game_key]
   }
 
   depends_on = [aws_key_pair.game_key]
