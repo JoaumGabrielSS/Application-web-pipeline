@@ -48,12 +48,7 @@ data "aws_ami" "amazon_linux" {
   }
 }
 
-# Use existing AWS key pair instead of creating new one
-data "aws_key_pair" "existing_game_key" {
-  key_name = var.key_name
-}
-
-# Create a new private key for Jenkins to use (since we can't get the existing private key from AWS)
+# Create a new private key for Jenkins to use
 resource "tls_private_key" "game_key" {
   algorithm = "RSA"
   rsa_bits  = 4096
@@ -66,7 +61,7 @@ resource "local_file" "private_key" {
   file_permission = "0600"
 }
 
-# Update the existing key pair with the new public key
+# Create AWS key pair - will replace existing one
 resource "aws_key_pair" "game_key" {
   key_name   = var.key_name
   public_key = tls_private_key.game_key.public_key_openssh
@@ -76,7 +71,7 @@ resource "aws_key_pair" "game_key" {
   })
 
   lifecycle {
-    replace_triggered_by = [tls_private_key.game_key]
+    create_before_destroy = true
   }
 }
 
