@@ -54,8 +54,19 @@ resource "tls_private_key" "game_key" {
   rsa_bits  = 4096
 }
 
-# Use existing AWS key pair (will use the one that already exists)
-# Since we know the key exists, we don't need to create it again
+# Create or update AWS key pair with new public key
+resource "aws_key_pair" "game_key" {
+  key_name   = var.key_name
+  public_key = tls_private_key.game_key.public_key_openssh
+
+  tags = merge(var.project_tags, {
+    Name = "${var.project_name}-key-pair"
+  })
+
+  lifecycle {
+    create_before_destroy = true
+  }
+}
 
 # Always save the private key to Jenkins workspace
 resource "local_file" "private_key" {
@@ -67,7 +78,7 @@ resource "local_file" "private_key" {
 resource "aws_instance" "game_server" {
   ami                         = data.aws_ami.amazon_linux.id
   instance_type               = var.instance_type
-  key_name                    = var.key_name
+  key_name                    = aws_key_pair.game_key.key_name
   vpc_security_group_ids      = [aws_security_group.web_sg.id]
   subnet_id                   = aws_subnet.game_subnet.id
   associate_public_ip_address = true
@@ -87,4 +98,11 @@ resource "aws_instance" "game_server" {
     Name = "${var.project_name}-game-server"
     Type = "GameServer"
   })
+
+  # Force recreation when key pair changes
+  lifecycle {
+    create_before_destroy = true
+  }
+
+  depends_on = [aws_key_pair.game_key]
 }
