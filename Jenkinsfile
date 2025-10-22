@@ -5,7 +5,7 @@ pipeline {
         AWS_DEFAULT_REGION = 'us-east-1'
         AWS_REGION = 'us-east-1'
         TF_VAR_project_name = 'match3-game'
-        SSH_KEY_PATH = 'terraform/candy-crush-game-key.pem'
+        SSH_KEY_NAME = 'candy-crush-game-key'
         DEPLOY_SCRIPT = 'scripts/deploy-application.sh'
     }
     
@@ -46,13 +46,15 @@ pipeline {
                     if (isUnix()) {
                         sh '''
                             echo "Configurando permissões Linux..."
+                            SSH_KEY_PATH="terraform/${SSH_KEY_NAME}.pem"
+
                             if [ -f "${SSH_KEY_PATH}" ]; then
                                 chmod 600 ${SSH_KEY_PATH}
-                                echo "Chave SSH configurada: ${SSH_KEY_PATH}"
+                                echo "Chave SSH encontrada e configurada: ${SSH_KEY_PATH}"
                             else
                                 echo "Chave SSH será criada pelo Terraform: ${SSH_KEY_PATH}"
                             fi
-                            
+
                             if [ -f "${DEPLOY_SCRIPT}" ]; then
                                 chmod +x ${DEPLOY_SCRIPT}
                                 echo "Deploy script configurado: ${DEPLOY_SCRIPT}"
@@ -60,7 +62,7 @@ pipeline {
                                 echo "Deploy script não encontrado: ${DEPLOY_SCRIPT}"
                                 exit 1
                             fi
-                            
+
                             if [ -f "scripts/setup.sh" ]; then
                                 chmod +x scripts/setup.sh
                                 echo "Setup script configurado: scripts/setup.sh"
@@ -72,19 +74,21 @@ pipeline {
                     } else {
                         bat '''
                             echo "Configurando permissões Windows..."
+                            set "SSH_KEY_PATH=terraform\\%SSH_KEY_NAME%.pem"
+
                             if exist "%SSH_KEY_PATH%" (
                                 echo "Chave SSH encontrada: %SSH_KEY_PATH%"
                             ) else (
                                 echo "Chave SSH será criada pelo Terraform: %SSH_KEY_PATH%"
                             )
-                            
+
                             if exist "%DEPLOY_SCRIPT%" (
                                 echo "Deploy script encontrado: %DEPLOY_SCRIPT%"
                             ) else (
                                 echo "Deploy script não encontrado: %DEPLOY_SCRIPT%"
                                 exit /b 1
                             )
-                            
+
                             if exist "scripts\\setup.sh" (
                                 echo "Setup script encontrado: scripts\\setup.sh"
                             ) else (
@@ -357,20 +361,25 @@ pipeline {
                 script {
                     def serverIp = readFile('server_ip.txt').trim()
                     echo "⏳ Aguardando instância ${serverIp} ficar pronta..."
-                    
+
                     sh """
-                        echo "🔍 Testando conectividade SSH..."
+                        SSH_KEY_PATH="terraform/${SSH_KEY_NAME}.pem"
+
+                        # Garantir permissões corretas
+                        chmod 600 \${SSH_KEY_PATH}
+
+                        echo "🔍 Testando conectividade SSH com chave: \${SSH_KEY_PATH}"
                         for i in {1..20}; do
-                            if ssh -i ${SSH_KEY_PATH} -o ConnectTimeout=10 -o StrictHostKeyChecking=no ec2-user@${serverIp} 'echo "SSH OK"' 2>/dev/null; then
+                            if ssh -i \${SSH_KEY_PATH} -o ConnectTimeout=10 -o StrictHostKeyChecking=no ec2-user@${serverIp} 'echo "SSH OK"' 2>/dev/null; then
                                 echo "✅ Instância acessível via SSH!"
                                 break
                             fi
                             echo "⏳ Tentativa \$i/20 - aguardando 30 segundos..."
                             sleep 30
                         done
-                        
+
                         echo "🐋 Verificando Docker na instância..."
-                        ssh -i ${SSH_KEY_PATH} -o StrictHostKeyChecking=no ec2-user@${serverIp} 'docker --version && docker-compose --version'
+                        ssh -i \${SSH_KEY_PATH} -o StrictHostKeyChecking=no ec2-user@${serverIp} 'docker --version && docker-compose --version'
                     """
                 }
             }
@@ -384,10 +393,13 @@ pipeline {
                 script {
                     def serverIp = readFile('server_ip.txt').trim()
                     echo "🚀 Iniciando deploy da aplicação para ${serverIp}..."
-                    
+
                     sh """
-                        echo "🎮 Executando deploy profissional..."
-                        ${DEPLOY_SCRIPT} ${serverIp} ${SSH_KEY_PATH} game-app
+                        SSH_KEY_PATH="terraform/${SSH_KEY_NAME}.pem"
+                        chmod 600 \${SSH_KEY_PATH}
+
+                        echo "🎮 Executando deploy profissional com chave: \${SSH_KEY_PATH}"
+                        ${DEPLOY_SCRIPT} ${serverIp} \${SSH_KEY_PATH} game-app
                     """
                 }
             }
@@ -401,8 +413,11 @@ pipeline {
                 script {
                     def serverIp = readFile('server_ip.txt').trim()
                     echo "🔍 Executando health check completo..."
-                    
+
                     sh """
+                        SSH_KEY_PATH="terraform/${SSH_KEY_NAME}.pem"
+                        chmod 600 \${SSH_KEY_PATH}
+
                         echo "🌐 Testando aplicação web..."
                         for i in {1..15}; do
                             if curl -f -s -m 10 http://${serverIp} >/dev/null 2>&1; then
@@ -412,19 +427,19 @@ pipeline {
                             echo "⏳ Tentativa \$i/15 - aguardando aplicação inicializar..."
                             sleep 20
                         done
-                        
+
                         echo "🔧 Testando API backend..."
                         if curl -f -s -m 10 http://${serverIp}:3000/health >/dev/null 2>&1; then
                             echo "✅ API backend funcionando!"
                         else
                             echo "⚠️ API backend não respondeu (pode estar inicializando)"
                         fi
-                        
+
                         echo "🐋 Verificando containers Docker..."
-                        ssh -i ${SSH_KEY_PATH} -o StrictHostKeyChecking=no ec2-user@${serverIp} 'cd /opt/game-app && docker-compose ps'
-                        
+                        ssh -i \${SSH_KEY_PATH} -o StrictHostKeyChecking=no ec2-user@${serverIp} 'cd /opt/game-app && docker-compose ps'
+
                         echo "📊 Status geral do sistema:"
-                        ssh -i ${SSH_KEY_PATH} -o StrictHostKeyChecking=no ec2-user@${serverIp} 'df -h / && free -h && uptime'
+                        ssh -i \${SSH_KEY_PATH} -o StrictHostKeyChecking=no ec2-user@${serverIp} 'df -h / && free -h && uptime'
                     """
                 }
             }
@@ -521,21 +536,21 @@ pipeline {
                     
                     echo """
                     🎉🎉🎉 PIPELINE DE PRODUÇÃO CONCLUÍDO COM SUCESSO! 🎉🎉🎉
-                    
+
                     🎮 SEU MATCH-3 GAME ESTÁ FUNCIONANDO:
                     ═══════════════════════════════════════════
                     🌐 Aplicação Web: http://${serverIp}
                     🔧 API Backend:   http://${serverIp}:3000
                     🏥 Health Check:  http://${serverIp}:3000/health
-                    
+
                     🔐 ACESSO SSH:
-                    ssh -i candy-crush-game-key.pem ec2-user@${serverIp}
-                    
+                    ssh -i terraform/${env.SSH_KEY_NAME}.pem ec2-user@${serverIp}
+
                     📊 MONITORAMENTO:
                     - Logs Docker: /opt/game-app/logs/
                     - Status: docker-compose ps
                     - Recursos: htop / df -h
-                    
+
                     🚀 PRÓXIMOS PASSOS:
                     - Teste o jogo completo
                     - Configure DNS personalizado
@@ -565,20 +580,20 @@ pipeline {
         failure {
             echo """
             ❌❌❌ PIPELINE FALHOU! ❌❌❌
-            
+
             🔍 DIAGNÓSTICO RÁPIDO:
             ═══════════════════════
             1. Verifique credenciais AWS (aws sts get-caller-identity)
-            2. Confirme chave SSH: ${SSH_KEY_PATH}
+            2. Confirme chave SSH: terraform/${env.SSH_KEY_NAME}.pem
             3. Valide região AWS: ${AWS_DEFAULT_REGION}
             4. Verifique logs do Terraform acima
-            
+
             💡 PROBLEMAS COMUNS:
             - Credenciais AWS expiradas
             - Limite de recursos atingido
             - Security groups conflitantes
-            - Chave SSH não encontrada
-            
+            - Chave SSH não encontrada ou sem permissões
+
             🆘 SUPORTE:
             - Logs arquivados para análise
             - Execute 'plan' para diagnosticar
